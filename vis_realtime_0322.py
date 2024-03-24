@@ -322,43 +322,6 @@ def flip_data(data, left_joints=[1, 2, 3, 14, 15, 16], right_joints=[4, 5, 6, 11
     return flipped_data
 
 
-def interpolation(keypoints_1, keypoints_2):
-    assert keypoints_1.shape == keypoints_2.shape
-    kpts_in1 = np.zeros((17, 2))
-    kpts_in2 = np.zeros((17, 2))
-    kpts_in3 = np.zeros((17, 2))
-    kpts_in4 = np.zeros((17, 2))
-    kpts_in5 = np.zeros((17, 2))
-    kpts_in6 = np.zeros((17, 2))
-    kpts_in7 = np.zeros((17, 2))
-    kpts_in8 = np.zeros((17, 2))
-    kpts_in9 = np.zeros((17, 2))
-    kpts_in10 = np.zeros((17, 2))
-    kpts_in11 = np.zeros((17, 2))
-    kpts_in12 = np.zeros((17, 2))
-
-    for i in range(len(keypoints_1)):
-        base = (1/13)*(keypoints_2[i] - keypoints_1[i])
-        print(base)
-        kpts_in1[i] = keypoints_1[i] + 1*base
-        kpts_in2[i] = keypoints_1[i] + 2*base
-        kpts_in3[i] = keypoints_1[i] + 3*base
-        kpts_in4[i] = keypoints_1[i] + 4*base
-        kpts_in5[i] = keypoints_1[i] + 5*base
-        kpts_in6[i] = keypoints_1[i] + 6*base
-        kpts_in7[i] = keypoints_1[i] + 7*base
-        kpts_in8[i] = keypoints_1[i] + 8*base
-        kpts_in9[i] = keypoints_1[i] + 9*base
-        kpts_in10[i] = keypoints_1[i] + 10*base
-        kpts_in11[i] = keypoints_1[i] + 11*base
-        kpts_in12[i] = keypoints_1[i] + 12*base
-
-    kpt_final = [kpts_in1, kpts_in2, kpts_in3, kpts_in4, kpts_in5, kpts_in6, kpts_in7, kpts_in8, kpts_in9, kpts_in10, kpts_in11, kpts_in12]
-    kpt_final = np.array(kpt_final)
-    kpt_final = np.reshape(kpt_final, (1, 12, 17, 2))
-
-    return kpt_final
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--video', type=str, default='sample_video.mp4', help='input video')
@@ -414,6 +377,7 @@ if __name__ == "__main__":
     delta = 0
     sec = 0
     frame_count = 0
+    estimation_count = 0
     
     ### image cache ###
     # image_cache = deque(maxlen = args.window)
@@ -426,8 +390,7 @@ if __name__ == "__main__":
     # image_cache = []
     keypoints_cache = [] # store 2d keypoints
     pose_cache = [] # store 2d HPE images
-    keypoints_pre = []
-    keypoints = []
+
     # while(cap.isOpened()):
     while(True):
         # ret, frame = cap.read()
@@ -454,7 +417,6 @@ if __name__ == "__main__":
         1. HRNet (more accurate but very slow)
         2. OpenPose (less accurate but faster)
         '''
-        keypoints_pre = keypoints
         # HRNet
         if args.pose2d == 'hrnet':
             keypoints, image_2d = generate_2D_pose(frame.copy(), frame_count) # 2D keypoint and 2d pose image of current frame
@@ -463,54 +425,45 @@ if __name__ == "__main__":
         if args.pose2d == 'openpose':
             keypoints, image_2d = get_openpose_2d(frame.copy())
 
-        if frame_count > 1:
-            keypoints_pre2 = keypoints_pre[0, 0, :, :]
-            keypoints2 = keypoints[0, 0, :, :]
-            keypoints_mid = interpolation(keypoints_pre2, keypoints2)
-            keypoints_aug = np.concatenate((keypoints_mid, keypoints), axis=1)
-        else:
-            keypoints_aug = keypoints
 
+        # print(keypoints)
+        # print(keypoints.shape)        
+        # cv2.imshow('2d pose', np.array(image_2d))
+        
         if len(keypoints_cache) <= 0: # At initialization, populate clip with initial frame
             for i in range(int(args.window)):
-                keypoints_cache.append(keypoints)
-            for i in range(3):
                 pose_cache.append(image_2d)
+                keypoints_cache.append(keypoints)
 
         # Add the predicted pose and keypoints to last and pop out the oldest one
         pose_cache.append(image_2d)
         pose_cache.pop(0)
-        if frame_count > 1:
-            for i in range(13):
-                keypoints_cache.append(keypoints_aug[:, i, :, :])
-                keypoints_cache.pop(0)
-        # else:
-        #     keypoints_cache.append(keypoints_aug)
-        #     keypoints_cache.pop(0)
-                            
+        keypoints_cache.append(keypoints)
+        keypoints_cache.pop(0)
         # update_cache(frame.copy())
 
-        # # refresh keypoint cache
-        # keypoints_cache_fresh = []
+        # refresh keypoint cache
+        keypoints_cache_fresh = []
 
-        # for i in range(len(keypoints_cache)):
-        #     if i < 6:
-        #         keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2-3])            
-        #     elif i>=6 and i< 10:
-        #         keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2-2])             
-        #     elif i>=10 and i<16:
-        #         keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2-1])  
-        #     elif i>=16 and i<20:
-        #         keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2])
-        #     else:
-        #         keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2+1])
-        print(keypoints_cache)
+        for i in range(len(keypoints_cache)):
+            if i < 6:
+                keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2-3])            
+            elif i>=6 and i< 10:
+                keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2-2])             
+            elif i>=10 and i<16:
+                keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2-1])  
+            elif i>=16 and i<20:
+                keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2])
+            else:
+                keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2+1])
+
         print("start 3D pose estimation")
+        estimation_count += 1
         keypoints_cache_r = np.array(keypoints_cache)
         keypoints_cache_r = np.reshape(keypoints_cache_r, (1, int(args.window), 17, 2))
 
-        # keypoints_cache_fresh = np.array(keypoints_cache_fresh)
-        # keypoints_cache_fresh = np.reshape(keypoints_cache_fresh, (1, int(args.window), 17, 2))
+        keypoints_cache_fresh = np.array(keypoints_cache_fresh)
+        keypoints_cache_fresh = np.reshape(keypoints_cache_fresh, (1, int(args.window), 17, 2))
     
         # print(keypoints_cache_r)
         # print(keypoints_cache_r.shape)
@@ -518,7 +471,7 @@ if __name__ == "__main__":
         # 3D HPE
         # if (frame_count-1) % (int(args.window)//2) < 5:
         # if (frame_count-1) % 3 == 0:
-        image_3d_original = generate_3D_pose(keypoints_cache_r, image_2d, frame_count)
+        image_3d_original = generate_3D_pose(keypoints_cache_fresh, image_2d, frame_count)
         image_3d = image_3d_original
         
         print(image_3d.shape)
@@ -532,7 +485,7 @@ if __name__ == "__main__":
         if frame_count > 13:
 
             ## crop
-            image_2d = pose_cache[1]
+            image_2d = pose_cache[13]
             edge = (image_2d.shape[1] - image_2d.shape[0]) // 2
             image_2d = image_2d[:, edge:image_2d.shape[1] - edge]
 
