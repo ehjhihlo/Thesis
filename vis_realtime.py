@@ -25,12 +25,9 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 # for xtion pro
-from openni import openni2
+# from openni import openni2
 import time
-from lib.openpose.gen_pose import get_openpose_2d
 # from collections import deque
-
-k = 0
 
 def show2Dpose(kps, img):
     connections = [[0, 1], [1, 2], [2, 3], [0, 4], [4, 5],
@@ -68,9 +65,7 @@ def show3Dpose(vals, ax):
 
     for i in np.arange( len(I) ):
         x, y, z = [np.array( [vals[I[i], j], vals[J[i], j]] ) for j in range(3)]
-        # ax.plot(x, y, z, lw=2, color = lcolor if LR[i] else rcolor)
-        ax.plot(x, y, z, lw=2)
-        ax.scatter(x, y, z)
+        ax.plot(x, y, z, lw=2, color = lcolor if LR[i] else rcolor)
 
     RADIUS = 0.72
     RADIUS_Z = 0.7
@@ -110,7 +105,7 @@ def generate_2D_pose(image, frame_count):
     input_2D = keypoints[0][0]
     img_pose = show2Dpose(input_2D, copy.deepcopy(image))
     #     pose_cache_2d.append(image)
-    cv2.imwrite(os.path.join('./temp/', f'pose_2D_{frame_count:03}.png'), img_pose)
+    cv2.imwrite(os.path.join('./temp/', f'pose_2D_{frame_count}.png'), img_pose)
     return keypoints, img_pose
 
 def load_model(args):
@@ -148,7 +143,7 @@ def generate_3D_pose(keypoints_cache, image_2d, frame_count):
     model = load_model(args)
 
 
-    global k
+    
     print('\nGenerating 3D pose...')
     # output_3d_all = []
     ## input frames
@@ -206,7 +201,7 @@ def generate_3D_pose(keypoints_cache, image_2d, frame_count):
 
     # input_2D_no = input_2D_no[args.pad]   
 
-    fig = plt.figure(figsize=(9.6, 5.4))
+    fig = plt.figure( figsize=(9.6, 5.4))
     gs = gridspec.GridSpec(1, 1)
     gs.update(wspace=-0.00, hspace=0.05) 
     ax = plt.subplot(gs[0], projection='3d')
@@ -220,18 +215,10 @@ def generate_3D_pose(keypoints_cache, image_2d, frame_count):
     
     plt.savefig(f'./temp/pose_3D_{frame_count}.png', dpi=200, format='png', bbox_inches = 'tight')
 
-
-    k+=1
-    print(f'frame_count and k: {frame_count}, {k}')
     print('Generating 3D pose successful!')
     return image_3d
-        # plt.savefig('pose_3D.png', dpi=200, format='png', bbox_inches='tight')
-        # plt.close(fig)
-        
-        # image_3d = plt.imread('pose_3D.png')
 
    
-
 
 def img2video(video_path, output_dir):
     cap = cv2.VideoCapture(video_path)
@@ -249,10 +236,7 @@ def img2video(video_path, output_dir):
         img = cv2.imread(name)
         videoWrite.write(img)
 
-    videoWrite.release()        # plt.savefig('pose_3D.png', dpi=200, format='png', bbox_inches='tight')
-        # plt.close(fig)
-        
-        # image_3d = plt.imread('pose_3D.png')
+    videoWrite.release()
 
 
 def showimage(ax, img):
@@ -322,49 +306,11 @@ def flip_data(data, left_joints=[1, 2, 3, 14, 15, 16], right_joints=[4, 5, 6, 11
     return flipped_data
 
 
-def interpolation(keypoints_1, keypoints_2):
-    assert keypoints_1.shape == keypoints_2.shape
-    kpts_in1 = np.zeros((17, 2))
-    kpts_in2 = np.zeros((17, 2))
-    kpts_in3 = np.zeros((17, 2))
-    kpts_in4 = np.zeros((17, 2))
-    kpts_in5 = np.zeros((17, 2))
-    kpts_in6 = np.zeros((17, 2))
-    kpts_in7 = np.zeros((17, 2))
-    kpts_in8 = np.zeros((17, 2))
-    kpts_in9 = np.zeros((17, 2))
-    kpts_in10 = np.zeros((17, 2))
-    kpts_in11 = np.zeros((17, 2))
-    kpts_in12 = np.zeros((17, 2))
-
-    for i in range(len(keypoints_1)):
-        base = (1/13)*(keypoints_2[i] - keypoints_1[i])
-        print(base)
-        kpts_in1[i] = keypoints_1[i] + 1*base
-        kpts_in2[i] = keypoints_1[i] + 2*base
-        kpts_in3[i] = keypoints_1[i] + 3*base
-        kpts_in4[i] = keypoints_1[i] + 4*base
-        kpts_in5[i] = keypoints_1[i] + 5*base
-        kpts_in6[i] = keypoints_1[i] + 6*base
-        kpts_in7[i] = keypoints_1[i] + 7*base
-        kpts_in8[i] = keypoints_1[i] + 8*base
-        kpts_in9[i] = keypoints_1[i] + 9*base
-        kpts_in10[i] = keypoints_1[i] + 10*base
-        kpts_in11[i] = keypoints_1[i] + 11*base
-        kpts_in12[i] = keypoints_1[i] + 12*base
-
-    kpt_final = [kpts_in1, kpts_in2, kpts_in3, kpts_in4, kpts_in5, kpts_in6, kpts_in7, kpts_in8, kpts_in9, kpts_in10, kpts_in11, kpts_in12]
-    kpt_final = np.array(kpt_final)
-    kpt_final = np.reshape(kpt_final, (1, 12, 17, 2))
-
-    return kpt_final
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--video', type=str, default='sample_video.mp4', help='input video')
     parser.add_argument('--window', type=str, default='27', help='sliding window length')
     parser.add_argument('--gpu', type=str, default='0', help='input video')
-    parser.add_argument('--pose2d', type=str, default='hrnet', help='type of 2d pose estimator')
     args = parser.parse_args()
     # print(args)
     
@@ -378,19 +324,19 @@ if __name__ == "__main__":
 
 
     #### initialize camera ####
-    openni2.initialize()     # can also accept the path of the OpenNI redistribution
-    dev = openni2.Device.open_any()
-    print(dev.get_device_info())
+    # openni2.initialize()     # can also accept the path of the OpenNI redistribution
+    # dev = openni2.Device.open_any()
+    # print(dev.get_device_info())
 
-    depth_stream = dev.create_depth_stream()
-    color_stream = dev.create_color_stream()
+    # depth_stream = dev.create_depth_stream()
+    # color_stream = dev.create_color_stream()
 
-    dev.set_image_registration_mode(openni2.IMAGE_REGISTRATION_DEPTH_TO_COLOR)
+    # dev.set_image_registration_mode(openni2.IMAGE_REGISTRATION_DEPTH_TO_COLOR)
 
-    color_stream.start()
-    depth_stream.start()
+    # color_stream.start()
+    # depth_stream.start()
 
-    use_cam = False
+    use_cam = True
     if use_cam == True:
         cap = cv2.VideoCapture(0)
     else:
@@ -401,19 +347,19 @@ if __name__ == "__main__":
     # videoWriter = cv2.VideoWriter(os.path.join('video.mp4'), fourcc, 8.0, (1920, 480))
     save_video = True
     if save_video == True:
-        fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
+        fourcc = cv2.VideoWriter_fourcc('X','V','I','D')
         # videoWriter = cv2.VideoWriter('video.mp4', fourcc, 8.0, (1920, 480))
-        videoWriter = cv2.VideoWriter('video.mp4', fourcc, 3, (1500, 540))
+        videoWriter = cv2.VideoWriter('video.mp4', fourcc, 7.0, (1280, 480))
 
     output_dir = './temp/'
     os.makedirs(output_dir, exist_ok=True)
-    output_dir_2d = './temp_2d/'
-    os.makedirs(output_dir_2d, exist_ok=True)
+
 
     previous_time = time.time()
     delta = 0
     sec = 0
     frame_count = 0
+    estimation_count = 0
     
     ### image cache ###
     # image_cache = deque(maxlen = args.window)
@@ -426,11 +372,10 @@ if __name__ == "__main__":
     # image_cache = []
     keypoints_cache = [] # store 2d keypoints
     pose_cache = [] # store 2d HPE images
-    keypoints_pre = []
-    keypoints = []
+
     # while(cap.isOpened()):
     while(True):
-        # ret, frame = cap.read()
+        ret, frame = cap.read()
 
         frame_count += 1
         print(frame_count)
@@ -439,149 +384,92 @@ if __name__ == "__main__":
         fps = 1/(current_time - previous_time)
         previous_time = current_time
 
-        print('fps = ', fps)
         #### read RGB ####
-        cframe = color_stream.read_frame()
-        cframe_data = np.array(cframe.get_buffer_as_triplet()).reshape([240, 320, 3])
-        R = cframe_data[:, :, 0]
-        G = cframe_data[:, :, 1]
-        B = cframe_data[:, :, 2]
-        frame = np.transpose(np.array([B, G, R]), [1, 2, 0])
-        cv2.imwrite(os.path.join(output_dir_2d, f'out_{frame_count:03}.png'), frame)
+        # cframe = color_stream.read_frame()
+        # cframe_data = np.array(cframe.get_buffer_as_triplet()).reshape([240, 320, 3])
+        # R = cframe_data[:, :, 0]
+        # G = cframe_data[:, :, 1]
+        # B = cframe_data[:, :, 2]
+        # frame = np.transpose(np.array([B, G, R]), [1, 2, 0])
         
-        '''
-        Generate 2D Pose
-        1. HRNet (more accurate but very slow)
-        2. OpenPose (less accurate but faster)
-        '''
-        keypoints_pre = keypoints
-        # HRNet
-        if args.pose2d == 'hrnet':
-            keypoints, image_2d = generate_2D_pose(frame.copy(), frame_count) # 2D keypoint and 2d pose image of current frame
+        keypoints, image_2d = generate_2D_pose(frame.copy(), frame_count) # 2D keypoint and 2d pose image of current frame
+
         
-        # OpenPose
-        if args.pose2d == 'openpose':
-            keypoints, image_2d = get_openpose_2d(frame.copy())
-
-        if frame_count > 1:
-            keypoints_pre2 = keypoints_pre[0, 0, :, :]
-            keypoints2 = keypoints[0, 0, :, :]
-            keypoints_mid = interpolation(keypoints_pre2, keypoints2)
-            keypoints_aug = np.concatenate((keypoints_mid, keypoints), axis=1)
-        else:
-            keypoints_aug = keypoints
-
+        # cv2.imshow('2d pose', np.array(image_2d))
+        
         if len(keypoints_cache) <= 0: # At initialization, populate clip with initial frame
             for i in range(int(args.window)):
-                keypoints_cache.append(keypoints)
-            for i in range(3):
                 pose_cache.append(image_2d)
+                keypoints_cache.append(keypoints)
 
         # Add the predicted pose and keypoints to last and pop out the oldest one
         pose_cache.append(image_2d)
         pose_cache.pop(0)
-        if frame_count > 1:
-            for i in range(13):
-                keypoints_cache.append(keypoints_aug[:, i, :, :])
-                keypoints_cache.pop(0)
-        # else:
-        #     keypoints_cache.append(keypoints_aug)
-        #     keypoints_cache.pop(0)
-                            
+        keypoints_cache.append(keypoints)
+        keypoints_cache.pop(0)
         # update_cache(frame.copy())
 
-        # # refresh keypoint cache
-        # keypoints_cache_fresh = []
 
-        # for i in range(len(keypoints_cache)):
-        #     if i < 6:
-        #         keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2-3])            
-        #     elif i>=6 and i< 10:
-        #         keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2-2])             
-        #     elif i>=10 and i<16:
-        #         keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2-1])  
-        #     elif i>=16 and i<20:
-        #         keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2])
-        #     else:
-        #         keypoints_cache_fresh.append(keypoints_cache[len(keypoints_cache)//2+1])
-        print(keypoints_cache)
         print("start 3D pose estimation")
+        estimation_count += 1
         keypoints_cache_r = np.array(keypoints_cache)
         keypoints_cache_r = np.reshape(keypoints_cache_r, (1, int(args.window), 17, 2))
 
-        # keypoints_cache_fresh = np.array(keypoints_cache_fresh)
-        # keypoints_cache_fresh = np.reshape(keypoints_cache_fresh, (1, int(args.window), 17, 2))
     
-        # print(keypoints_cache_r)
-        # print(keypoints_cache_r.shape)
+        print(keypoints_cache_r)
+        print(keypoints_cache_r.shape)
 
         # 3D HPE
-        # if (frame_count-1) % (int(args.window)//2) < 5:
-        # if (frame_count-1) % 3 == 0:
-        image_3d_original = generate_3D_pose(keypoints_cache_r, image_2d, frame_count)
-        image_3d = image_3d_original
-        
-        print(image_3d.shape)
-        print('Done!!')
-        print(frame_count)
-        
-               
+        image_3d = generate_3D_pose(keypoints_cache_r, image_2d, frame_count)
         # demo
         print('\nGenerating demo...')
 
-        if frame_count > 13:
+        ## crop
+        edge = (image_2d.shape[1] - image_2d.shape[0]) // 2
+        image_2d = image_2d[:, edge:image_2d.shape[1] - edge]
 
-            ## crop
-            image_2d = pose_cache[1]
-            edge = (image_2d.shape[1] - image_2d.shape[0]) // 2
-            image_2d = image_2d[:, edge:image_2d.shape[1] - edge]
+        edge = 102
+        image_3d = image_3d[edge:image_3d.shape[0] - edge, edge:image_3d.shape[1] - edge]
 
-            edge = 102
-            # if (frame_count-1) % 4 == 0: 
-            #     image_3d = image_3d[edge:image_3d.shape[0] - edge, edge:image_3d.shape[1] - edge]
-            # else:
-            #     pass
-            ## show
-            font_size = 12
-            fig = plt.figure(figsize=(15.0, 5.4))
-            ax = plt.subplot(121)
-            showimage(ax, image_2d)
-            ax.set_title("2D Human Pose", fontsize = font_size)
+        ## show
+        font_size = 12
+        fig = plt.figure(figsize=(15.0, 5.4))
+        ax = plt.subplot(121)
+        showimage(ax, image_2d)
+        ax.set_title("2D Human Pose", fontsize = font_size)
 
-            ax = plt.subplot(122)
-            showimage(ax, image_3d)
-            ax.set_title("3D Human Pose", fontsize = font_size)
-        
-            plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
-            plt.margins(0, 0)
+        ax = plt.subplot(122)
+        showimage(ax, image_3d)
+        ax.set_title("3D Human Pose", fontsize = font_size)
+    
+        plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+        plt.margins(0, 0)
 
-            fig.canvas.draw()
-            result = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8,
-            sep='')
-            result = result.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-            cv2.imwrite(os.path.join(output_dir, f'out_{frame_count:03}.png'), result)
-            plt.close(fig)
-            # img is rgb, convert to opencv's default bgr
-            # result = cv2.cvtColor(result,cv2.COLOR_RGB2BGR)
+        fig.canvas.draw()
+        result = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8,
+        sep='')
+        result = result.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        cv2.imwrite(os.path.join(output_dir, f'out_{frame_count}.png'), result)
+        plt.close(fig)
+        # img is rgb, convert to opencv's default bgr
+        # result = cv2.cvtColor(result,cv2.COLOR_RGB2BGR)
 
-            result = cv2.imread(os.path.join(output_dir, f'out_{frame_count:03}.png'))
-            cv2.imshow('result', result)
-            # print(result.shape) # 540, 1500, 3
+        result = cv2.imread(os.path.join(output_dir, f'out_{frame_count}.png'))
+        print(result.shape)
+        cv2.imshow('result', result)
 
-            # cv2.imshow('image_2d', image_2d)
 
-            if save_video == True:
-                videoWriter.write(result)
-                # videoWriter.write(image_2d)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-            # img2video(video_path, output_dir)
-            print('Generating demo successful!')
+        if save_video == True:
+            videoWriter.write(result)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        # img2video(video_path, output_dir)
+        print('Generating demo successful!')
 
-    # cap.release()
+    cap.release()
     # close the device
-    color_stream.stop()
-    dev.close()
+    # color_stream.stop()
+    # dev.close()
     cv2.destroyAllWindows()
     if save_video == True:
         videoWriter.release()
