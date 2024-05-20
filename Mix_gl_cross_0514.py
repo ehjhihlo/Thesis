@@ -368,38 +368,39 @@ class GLCBlock(nn.Module):
         x_graph_spatial, x_att_spatial = self.graph_former_spatial(x_graph, x_att)
 
         # T = 243
-        # if self.layernum in [0, 1, 2, 3, 4, 5]:
-        #     x_graph_spatial = rearrange(x_graph_spatial, 'B (K T) J C  -> (B K) T J C', T=27)
+        if self.layernum in [0, 1, 2, 3, 4, 5]:
+            x_graph_spatial = rearrange(x_graph_spatial, 'B (K T) J C  -> (B K) T J C', T=27)
             
-        # elif self.layernum in [6, 7, 8, 9, 10]:
-        #     x_graph_spatial = rearrange(x_graph_spatial, 'B (K T) J C  -> (B K) T J C', T=81)
+        elif self.layernum in [6, 7, 8, 9, 10]:
+            x_graph_spatial = rearrange(x_graph_spatial, 'B (K T) J C  -> (B K) T J C', T=81)
 
-        # x_graph_spatial = rearrange(x_graph_spatial, '(B K) T J C  -> B (K T) J C', B=B)
+        x_graph_spatial = rearrange(x_graph_spatial, '(B K) T J C  -> B (K T) J C', B=B)
         
 
 
 
         if self.layernum < self.layer_index:
             x_graph_temporal, x_att_temporal = self.graph_former_temporal(x_graph_spatial, x_att_spatial)
-            x_graph_temporal2, x_att_temporal2 = self.graph_former_temporal(x_graph, x_att)
+            # x_graph_temporal2, x_att_temporal2 = self.graph_former_temporal(x_graph, x_att)
         else:
             x_graph_temporal, x_att_temporal = self.graph_former_temporal_prune(x_graph_spatial, x_att_spatial)
-            x_graph_temporal2, x_att_temporal2 = self.graph_former_temporal_prune(x_graph, x_att)
+            # x_graph_temporal2, x_att_temporal2 = self.graph_former_temporal_prune(x_graph, x_att)
 
         # x_graph_temporal, x_att_temporal = self.graph_former_temporal(x_graph_spatial, x_att_spatial)
-        x_graph_spatial2, x_att_spatial2 = self.graph_former_spatial(x_graph_temporal2, x_att_temporal2)
+        
+        # x_graph_spatial2, x_att_spatial2 = self.graph_former_spatial(x_graph_temporal2, x_att_temporal2)
 
         alpha = torch.cat((x_graph_temporal, x_att_temporal), dim=-1)
         alpha = self.fusion(alpha)
         alpha = alpha.softmax(dim=-1)
-        x_1 = x_graph_temporal * alpha[..., 0:1] + x_att_temporal * alpha[..., 1:2]
+        x = x_graph_temporal * alpha[..., 0:1] + x_att_temporal * alpha[..., 1:2]
 
-        beta = torch.cat((x_graph_spatial2, x_att_spatial2), dim=-1)
-        beta = self.fusion( beta)
-        beta = beta.softmax(dim=-1)
-        x_2 = x_graph_temporal *  beta[..., 0:1] + x_att_temporal *  beta[..., 1:2]
+        # beta = torch.cat((x_graph_spatial2, x_att_spatial2), dim=-1)
+        # beta = self.fusion( beta)
+        # beta = beta.softmax(dim=-1)
+        # x_2 = x_graph_temporal *  beta[..., 0:1] + x_att_temporal *  beta[..., 1:2]
 
-        x = x_1 + x_2
+        # x = x_1 + x_2
 
         # Token Recovering Attention        
         if self.layernum == 15:
@@ -622,9 +623,12 @@ class GLCModel(nn.Module):
             elif i==15:
                 highlevel_feature = x
 
+        print(lowlevel_feature.shape)
+        print(intermediate_feature.shape)
+        print(highlevel_feature.shape)
         intermediate_feature = torch.cat((intermediate_feature,intermediate_feature,intermediate_feature),dim=1) # 81 -> 243
         complex_feature = torch.cat((lowlevel_feature, intermediate_feature, highlevel_feature),dim=-1)  # B, T, J, 3*C          
-        
+        # print(complex_feature.shape)
         ##### Adaptive fusion
         beta = self.fusion(complex_feature)
         beta = beta.softmax(dim=-1)

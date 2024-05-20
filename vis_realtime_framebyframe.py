@@ -16,8 +16,14 @@ import copy
 sys.path.append(os.getcwd())
 # from model.stcformer import Model
 # from model.ModelEJ import MyModel as Model
-from lib.model.DSTformer import DSTformer as Model
-from lib.utils.camera import *
+# from lib.model.DSTformer import DSTformer as Model
+# from lib.utils.camera import *
+
+# from model.MixedGLC import GLCModel as Model
+from model.Mix_gl_cross_0514 import GLCModel as Model
+
+from demo.lib.utils import normalize_screen_coordinates, camera_to_world
+from demo.lib.utils import get_config
 
 import matplotlib
 import matplotlib.pyplot as plt 
@@ -127,14 +133,19 @@ def generate_2D_pose(image, frame_count, box_model, pose_model, cfg, device):
 def load_model(args):
     ## Reload 
     # model = nn.DataParallel(MotionAGFormer(**args)).cuda()
-    model = Model(dim_in=args.dim_in, dim_out=args.dim_out, dim_feat=args.dim_feat, dim_rep=args.dim_rep,
-                 depth=args.depth, num_heads=args.num_heads, mlp_ratio=args.mlp_ratio, 
-                 num_joints=args.num_joints, maxlen=args.maxlen, 
-                 qkv_bias=args.qkv_bias, qk_scale=args.qk_scale, drop_rate=args.drop_rate, attn_drop_rate=args.attn_drop_rate, drop_path_rate=args.drop_path_rate, norm_layer=args.norm_layer, att_fuse=args.att_fuse).cuda()
+    # model = Model(dim_in=args.dim_in, dim_out=args.dim_out, dim_feat=args.dim_feat, dim_rep=args.dim_rep,
+    #              depth=args.depth, num_heads=args.num_heads, mlp_ratio=args.mlp_ratio, 
+    #              num_joints=args.num_joints, maxlen=args.maxlen, 
+    #              qkv_bias=args.qkv_bias, qk_scale=args.qk_scale, drop_rate=args.drop_rate, attn_drop_rate=args.attn_drop_rate, drop_path_rate=args.drop_path_rate, norm_layer=args.norm_layer, att_fuse=args.att_fuse).cuda()
+    model = Model(args).cuda()
     model_dict = model.state_dict()
     # Put the pretrained model of MotionAGFormer in 'checkpoint/'
-    model_path = os.path.join('checkpoint', 'pose3d', 'MB_train_h36m', 'best_epoch22.bin')
-
+    # model_path = os.path.join('checkpoint', 'pose3d', 'MB_train_h36m', 'best_epoch22.bin')
+    # model_path = os.path.join('checkpoint', '0423', 'mask_noise', 'best_epoch.bin')
+    # model_path = os.path.join('checkpoint', '0427', 'best_epoch_39.7_33.05.bin')
+    
+    # model_path = os.path.join('checkpoint', '0428', 'best_epoch.bin')
+    model_path = os.path.join('checkpoint', '0514-cross-umlp', 'best_epoch.bin')
     pre_dict = torch.load(model_path)
     # print(model_dict.keys())
     # print('44444')
@@ -145,6 +156,7 @@ def load_model(args):
         temp_dict[new_name] = key
         del temp_dict[name]
     # print(temp_dict.keys())
+    # print(model_dict.keys())
     for name, key in model_dict.items():
         # print(pre_dict['model_pos'][name])
         # model_dict[name] = pre_dict['model_pos'][name]
@@ -155,16 +167,21 @@ def load_model(args):
 
     return model
 
-def generate_3D_pose(keypoints_cache, image_2d, frame_count):
+def generate_3D_pose(args, keypoints_cache, image_2d, frame_count):
     #### 3D pose ####
-    args, _ = argparse.ArgumentParser().parse_known_args()
-    # args.layers, args.channel, args.d_hid, args.frames = 6, 256, 256, 27
+    # args, _ = argparse.ArgumentParser().parse_known_args()
+    # args.layers, args.channel, args.d_hid, args.frames = 16, 256, 256, 243
 
     # args.pad = (args.frames - 1) // 2
     # args.previous_dir = './checkpoint/'
     # args.n_joints, args.out_joints = 17, 17
 
-    # args.in_channels, args.dim_feat, args.dim_rep, args.out_channels = 2, 128, 256, 3
+    # args.dim_in = 3
+    # args.dim_out = 3
+    # args.n_frames = 243
+    # args.num_joints = 17
+
+    # args.in_channels, args.dim_feat, args.dim_rep, args.out_channels = 3, 128, 512, 3
     # args.mlp_ratio, args.act_layer = 4, nn.GELU
     # args.attn_drop, args.drop, args.drop_path = 0.0, 0.0, 0.0
     # args.use_layer_scale, args.layer_scale_init_value, args.use_adaptive_fusion = True, 0.00001, True
@@ -172,31 +189,33 @@ def generate_3D_pose(keypoints_cache, image_2d, frame_count):
     # args.hierarchical = False
     # args.use_temporal_similarity, args.neighbour_num, args.temporal_connection_len = True, 3, 1
     # args.use_tcn, args.graph_only = False, False
-    args.maxlen=243
-    args.dim_feat=512
-    args.mlp_ration=2
-    args.depth=5
-    args.dim_rep=512
-    args.num_heads=8
-    args.att_fuse=True
-    args.clip_len=243
-    args.data_stride=81
-    args.rootrel=True
-    args.sample_stride=1
-    args.num_joints=17
-    args.no_conf=False
-    args.gt_2d=False
-    args.dim_in=3
-    args.dim_out= 3
-    args.mlp_ratio=2
-    args.qkv_bias=True
-    args.qk_scale=None
-    args.drop_rate=0.
-    args.attn_drop_rate=0.
-    args.drop_path_rate=0.
-    args.norm_layer=nn.LayerNorm
-    args.att_fuse=True
-    args.pad = (args.clip_len - 1) // 2
+
+
+    # args.maxlen=243
+    # args.dim_feat=512
+    # args.mlp_ration=2
+    # args.depth=5
+    # args.dim_rep=512
+    # args.num_heads=8
+    # args.att_fuse=True
+    # args.clip_len=243
+    # args.data_stride=81
+    # args.rootrel=True
+    # args.sample_stride=1
+    # args.num_joints=17
+    # args.no_conf=False
+    # args.gt_2d=False
+    # args.dim_in=3
+    # args.dim_out= 3
+    # args.mlp_ratio=2
+    # args.qkv_bias=True
+    # args.qk_scale=None
+    # args.drop_rate=0.
+    # args.attn_drop_rate=0.
+    # args.drop_path_rate=0.
+    # args.norm_layer=nn.LayerNorm
+    # args.att_fuse=True
+    # args.pad = (args.clip_len - 1) // 2
 
 
     # args = vars(args)
@@ -270,14 +289,15 @@ def generate_3D_pose(keypoints_cache, image_2d, frame_count):
 
     # output_3D = output_3D[0:, args.pad].unsqueeze(1) 
     output_3D[:, :, 0, :] = 0
-    post_out = output_3D[0, 0].cpu().detach().numpy()
+    post_out_all = output_3D[0].cpu().detach().numpy()
+    post_out = post_out_all[-1]
 
     rot = [0.1407056450843811, -0.1500701755285263, -0.755240797996521, 0.6223280429840088]
     rot = np.array(rot, dtype='float32')
     post_out = camera_to_world(post_out, R=rot, t=0)
     post_out[:, 2] -= np.min(post_out[:, 2])
-    # max_value = np.max(post_out)
-    # post_out /= max_value
+    max_value = np.max(post_out)
+    post_out /= max_value
 
     # input_2D_no = input_2D_no[args.pad]
 
@@ -341,8 +361,8 @@ def showimage(ax, img):
 
 
 def resample(n_frames):
-    # even = np.linspace(0, n_frames, num=243, endpoint=False)
-    even = np.linspace(0, n_frames, num=27, endpoint=False)
+    even = np.linspace(0, n_frames, num=243, endpoint=False)
+    # even = np.linspace(0, n_frames, num=27, endpoint=False)
     result = np.floor(even)
     result = np.clip(result, a_min=0, a_max=n_frames - 1).astype(np.uint32)
     return result
@@ -402,8 +422,9 @@ def flip_data(data, left_joints=[1, 2, 3, 14, 15, 16], right_joints=[4, 5, 6, 11
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default="configs/h36m/MotionAGFormer-base.yaml", help="Path to the config file.")
     parser.add_argument('--video', type=str, default='sample_video.mp4', help='input video')
-    parser.add_argument('--window', type=str, default='27', help='sliding window length')
+    parser.add_argument('--window', type=str, default='243', help='sliding window length')
     parser.add_argument('--gpu', type=str, default='0', help='input video')
     # parser.add_argument('--pose2d', type=str, default='hrnet', help='type of 2d pose estimator')
     parser.add_argument('--camera', type=str, default='webcam', help='camera used(webcam or xtion_pro)')
@@ -415,17 +436,17 @@ def parse_args():
                         default=None,
                         nargs=argparse.REMAINDER)
 
-    args = parser.parse_args()
+    opts = parser.parse_args()
 
     # args expected by supporting codebase  
-    args.modelDir = ''
-    args.logDir = ''
-    args.dataDir = ''
-    args.prevModelDir = ''
-    return args
+    opts.modelDir = ''
+    opts.logDir = ''
+    opts.dataDir = ''
+    opts.prevModelDir = ''
+    return opts
 
-def reset_config(args):
-    update_config(cfg, args)
+def reset_config(opts):
+    update_config(cfg, opts)
 
     # cudnn related setting
     cudnn.benchmark = cfg.CUDNN.BENCHMARK
@@ -434,20 +455,22 @@ def reset_config(args):
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    reset_config(args)
+    opts = parse_args()
+    reset_config(opts)
+
+    args = get_config(opts.config)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(device)
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    os.environ["CUDA_VISIBLE_DEVICES"] = opts.gpu
 
-    video_path = './demo/video/' + args.video
+    video_path = './demo/video/' + opts.video
     video_name = video_path.split('/')[-1].split('.')[0]
 
-    print(f'Using camera: {args.camera}')
+    print(f'Using camera: {opts.camera}')
     #### initialize camera ####
-    if args.camera == 'xtion_pro':
+    if opts.camera == 'xtion_pro':
         openni2.initialize()     # can also accept the path of the OpenNI redistribution
         dev = openni2.Device.open_any()
         print(dev.get_device_info())
@@ -466,7 +489,7 @@ if __name__ == "__main__":
     # else:
     #     video_path = './demo/video/' + args.video
     #     cap = cv2.VideoCapture(video_path)
-    elif args.camera == 'webcam':
+    elif opts.camera == 'webcam':
         cap = cv2.VideoCapture(0)
 
     # videoWriter = cv2.VideoWriter(os.path.join(outputpath, 'video_2d.mp4'), fourcc, 8.0, (640, 480))
@@ -496,7 +519,7 @@ if __name__ == "__main__":
     #         image_cache.popleft()  # Remove oldest image
     #     image_cache.append(new_image)  # Add newest image
 
-    update_config(cfg, args)
+    update_config(cfg, opts)
     pose_model = get_pose_net(cfg, is_train=False)
    
     print('=> loading 2d hrnet model ...')
@@ -523,7 +546,7 @@ if __name__ == "__main__":
         previous_time = current_time
 
         print('fps = ', fps)
-        if args.camera == 'xtion_pro':
+        if opts.camera == 'xtion_pro':
             #### read RGB ####
             cframe = color_stream.read_frame()
             cframe_data = np.array(cframe.get_buffer_as_triplet()).reshape([240, 320, 3])
@@ -531,7 +554,7 @@ if __name__ == "__main__":
             G = cframe_data[:, :, 1]
             B = cframe_data[:, :, 2]
             frame = np.transpose(np.array([B, G, R]), [1, 2, 0])
-        elif args.camera == 'webcam':
+        elif opts.camera == 'webcam':
             ret, frame = cap.read()
 
 
@@ -544,7 +567,7 @@ if __name__ == "__main__":
         # cv2.imshow('2d pose', np.array(image_2d))
         
         if len(keypoints_cache) <= 0: # At initialization, populate clip with initial frame
-            for i in range(int(args.window)):
+            for i in range(int(opts.window)):
                 pose_cache.append(image_2d)
                 keypoints_cache.append(keypoints)
 
@@ -558,14 +581,14 @@ if __name__ == "__main__":
         # if frame_count % int(args.window) == 0: # full 2d sequence -> inference 3d pose sequence
         print("start 3D pose estimation")
         keypoints_cache_r = np.array(keypoints_cache)
-        keypoints_cache_r = np.reshape(keypoints_cache_r, (1, int(args.window), 17, 3))
+        keypoints_cache_r = np.reshape(keypoints_cache_r, (1, int(opts.window), 17, 3))
         # pose_cache = np.array(pose_cache)
         
         # model
         # model = load_model()
         
         # 3D HPE
-        image_3d_original = generate_3D_pose(keypoints_cache_r, image_2d, frame_count)
+        image_3d_original = generate_3D_pose(args, keypoints_cache_r, image_2d, frame_count)
         image_3d = image_3d_original
         # print(len(image_3d_cache))
         # demo
